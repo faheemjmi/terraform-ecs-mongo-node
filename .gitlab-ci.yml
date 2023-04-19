@@ -1,0 +1,76 @@
+---
+stages:
+  - build
+  - plan
+
+#variables:
+#  CI_REGISTRY_IMAGE: itsfaheem/goals-node
+
+
+
+build-backend:
+  variables:
+    CI_REGISTRY_IMAGE: itsfaheem/goals-node
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - >-
+      /kaniko/executor
+      --context "${CI_PROJECT_DIR}/goals-app/backend"
+      --dockerfile "${CI_PROJECT_DIR}/goals-app/backend/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+  tags:
+    - docker
+  when: manual
+
+build-frontend:
+  variables:
+    CI_REGISTRY_IMAGE: itsfaheem/goals-react  
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - >-
+      /kaniko/executor
+      --context "${CI_PROJECT_DIR}/goals-app/frontend"
+      --dockerfile "${CI_PROJECT_DIR}/goals-app/frontend/Dockerfile.prod"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+  tags:
+    - docker
+  when: manual
+
+plan:
+  stage: plan
+  tags:
+    - docker
+  image:
+    name: hashicorp/terraform:light
+    entrypoint:
+      - '/usr/bin/env'
+      - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'   
+  before_script:
+    - export AWS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+    - export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    - export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+    - rm -rf .terraform
+    - terraform --version
+  script:
+#    - sed "s|{{TF_TOKEN}}|$TF_TOKEN|" credentials.tfrc.json > /root/.terraformrc
+#    - echo $AWS_ACCESS_KEY_ID
+    - terraform init
+#    - terraform validate
+#    - terraform taint aws_ecs_task_definition.task_definition
+    - terraform plan -input=false -var-file devops/dev/dev.tfvars -var image_version=$CI_COMMIT_SHORT_SHA
+#    - terraform apply -auto-approve
+    - terraform apply -input=false -var-file devops/dev/dev.tfvars -var image_version=$CI_COMMIT_SHORT_SHA -auto-approve
+  needs:
+    - build-backend
+    - build-frontend
+  when: manual
