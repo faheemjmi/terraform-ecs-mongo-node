@@ -25,8 +25,8 @@ domain_name = "tools.pitneycloud.com"
 pb_cidr_block = ["165.225.124.78/32","122.161.82.144/32"]
 
 #MongoDB ENV variables
-MONGODB_URL = "mydemo.gbbhi2u.mongodb.net"
-MONGODB_NAME = "goals-dev"
+MONGODB_URL = "testURL"
+MONGODB_NAME = "testDB"
 MONGODB_USERNAME = "itsfaheem"
-MONGODB_PASSWORD = "EDHlg0D41p4pqeIp"
+MONGODB_PASSWORD = "testPWD"
 image_version = "latest"
